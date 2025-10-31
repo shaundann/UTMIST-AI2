@@ -564,50 +564,85 @@ def gen_reward_manager():
 # -------------------------------------------------------------------------
 # ----------------------------- MAIN FUNCTION -----------------------------
 # -------------------------------------------------------------------------
-'''
-The main function runs training. You can change configurations such as the Agent type or opponent specifications here.
-'''
+# =========================================================================
+# ONLY REPLACE THE "if __name__ == '__main__':" SECTION IN train_agent.py
+# Keep everything else the same!
+# =========================================================================
+
 if __name__ == '__main__':
-    # Create agent
-    my_agent = CustomAgent(sb3_class=PPO, extractor=MLPExtractor)
+    # Choose your agent type
+    # OPTION 1: Standard PPO (MORE STABLE, recommended if hanging)
+    my_agent = SB3Agent(sb3_class=PPO)
+    
+    # OPTION 2: RecurrentPPO with LSTM (can cause self-play hangs)
+    # my_agent = RecurrentPPOAgent()
+    
+    # To continue training from checkpoint:
+    # my_agent = RecurrentPPOAgent(file_path='checkpoints/weapon_master/rl_model_500000_steps.zip')
 
-    # Start here if you want to train from scratch. e.g:
-    #my_agent = RecurrentPPOAgent()
+    # WEAPON-FOCUSED REWARD FUNCTION
+    def gen_weapon_master_reward_manager():
+        reward_functions = {
+            # Core combat
+            'danger_zone_reward': RewTerm(func=danger_zone_reward, weight=1.2),  # Stay alive
+            'damage_interaction_reward': RewTerm(func=damage_interaction_reward, weight=2.5),  # Deal damage!
+            
+            # Positioning
+            'head_to_opponent': RewTerm(func=head_to_opponent, weight=0.1),  # Stay engaged
+            
+            # Attack behavior
+            'penalize_attack_reward': RewTerm(func=in_state_reward, weight=-0.015, params={'desired_state': AttackState}),
+            'holding_more_than_3_keys': RewTerm(func=holding_more_than_3_keys, weight=-0.02),
+        }
+        
+        signal_subscriptions = {
+            # Victory rewards (highest priority)
+            'on_win_reward': ('win_signal', RewTerm(func=on_win_reward, weight=150)),  # HUGE win bonus
+            'on_knockout_reward': ('knockout_signal', RewTerm(func=on_knockout_reward, weight=20)),  # Knockout bonus
+            
+            # Combo system
+            'on_combo_reward': ('hit_during_stun', RewTerm(func=on_combo_reward, weight=12)),  # Reward combos
+            
+            # WEAPON REWARDS (Critical for weapon mastery!)
+            'on_equip_reward': ('weapon_equip_signal', RewTerm(func=on_equip_reward, weight=25)),  # BIG reward for weapons
+            'on_drop_reward': ('weapon_drop_signal', RewTerm(func=on_drop_reward, weight=30))  # HUGE penalty for losing weapon
+        }
+        return RewardManager(reward_functions, signal_subscriptions)
 
-    # Start here if you want to train from a specific timestep. e.g:
-    #my_agent = RecurrentPPOAgent(file_path='checkpoints/experiment_3/rl_model_120006_steps.zip')
-
-    # Reward manager
-    reward_manager = gen_reward_manager()
+    reward_manager = gen_weapon_master_reward_manager()
+    
     # Self-play settings
     selfplay_handler = SelfPlayRandom(
-        partial(type(my_agent)), # Agent class and its keyword arguments
-                                 # type(my_agent) = Agent class
+        partial(type(my_agent)),
     )
 
-    # Set save settings here:
+    # Save settings
     save_handler = SaveHandler(
-        agent=my_agent, # Agent to save
-        save_freq=100_000, # Save frequency
-        max_saved=40, # Maximum number of saved models
-        save_path='checkpoints', # Save path
-        run_name='experiment_9',
-        mode=SaveHandlerMode.FORCE # Save mode, FORCE or RESUME
+        agent=my_agent,
+        save_freq=50_000,  # Save every 50k steps
+        max_saved=60,      # Keep more checkpoints to find the best
+        save_path='checkpoints',
+        run_name='weapon_master',  # New experiment for weapon focus
+        mode=SaveHandlerMode.FORCE
     )
 
-    # Set opponent settings here:
+    # Diverse opponent pool (NO self-play for stability)
     opponent_specification = {
-                    'self_play': (8, selfplay_handler),
-                    'constant_agent': (0.5, partial(ConstantAgent)),
-                    'based_agent': (1.5, partial(BasedAgent)),
-                }
+        # 'self_play': (5, selfplay_handler),  # Disabled to prevent hanging
+        'based_agent': (5, partial(BasedAgent)),  # Main opponent - smart fighter
+        'constant_agent': (3, partial(ConstantAgent)),  # Easy practice
+        'clockwork_agent': (2, partial(ClockworkAgent)),  # Predictable patterns
+    }
     opponent_cfg = OpponentsCfg(opponents=opponent_specification)
 
+    # Train - start with 2M steps, then continue training
     train(my_agent,
         reward_manager,
         save_handler,
         opponent_cfg,
         CameraResolution.LOW,
-        train_timesteps=1_000_000_000,
+        train_timesteps=2_000_000,  # 2M steps
         train_logging=TrainLogging.PLOT
     )
+    
+    print("\n🏆 Weapon Master Training Complete!")
