@@ -61,9 +61,10 @@ class SubmittedAgent(Agent):
         data_path = "rl-model.zip"
         if not os.path.isfile(data_path):
             print(f"Downloading {data_path}...")
-            url = "https://drive.google.com/drive/folders/1U8uVjL_0o_qrW9Fo5IoIKT74aLFlOYso?usp=sharing"
+            url = "https://drive.google.com/uc?id=1JIokiBOrOClh8piclbMlpEEs6mj3H1HJ"
             gdown.download(url, output=data_path, fuzzy=True)
         return data_path
+
 
     def calculate_distance(self, pos1, pos2):
         """Calculate distance between two positions"""
