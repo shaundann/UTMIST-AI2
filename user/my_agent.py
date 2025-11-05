@@ -173,7 +173,7 @@ class SubmittedAgent(Agent):
         distance = self.calculate_distance(pos, opp_pos)
         predicted_opp_pos = self.predict_opponent_position(opp_pos)
         
-        # === PRIORITY 0: EMERGENCY EDGE PROTECTION (STRONGEST) ===
+        # PRIORITY 0: EMERGENCY EDGE PROTECTION
         # Multiple safety zones for bulletproof protection
         edge_critical = 10.67 / 2 - 0.6   # CRITICAL - immediate danger
         edge_danger = 10.67 / 2 - 1.2     # HIGH danger
@@ -213,9 +213,8 @@ class SubmittedAgent(Agent):
                     action = self.act_helper.press_keys(['d'], action)
             return action
         
-        # === PRIORITY 1: DON'T FOLLOW FALLING OPPONENTS ===
+        # PRIORITY 1: DON'T FOLLOW FALLING OPPONENTS
         if self.is_opponent_falling(opp_pos, opp_state):
-            # Opponent is falling - STAY SAFE, move to center
             action = self.act_helper.zeros()
             
             # Move toward center of map
@@ -230,7 +229,7 @@ class SubmittedAgent(Agent):
             
             return action
         
-        # === PRIORITY 2: WEAPON CONTROL (only when safe) ===
+        # PRIORITY 2: WEAPON CONTROL
         if self.should_grab_weapon(distance, opp_state) and self.is_safe_position(pos):
             self.last_grab_attempt = self.time
             action = self.act_helper.press_keys(['g'])
@@ -244,7 +243,7 @@ class SubmittedAgent(Agent):
             
             return action
         
-        # === PRIORITY 3: DODGE INCOMING ATTACKS (edge-aware) ===
+        # PRIORITY 3: DODGE INCOMING ATTACKS
         if opp_state == 3 and distance < 2.2:
             # Dodge away from attack but CHECK FOR EDGES
             if pos[0] < opp_pos[0]:
@@ -265,7 +264,7 @@ class SubmittedAgent(Agent):
                     action = self.act_helper.press_keys(['space'])
             return action
         
-        # === PRIORITY 4: AGGRESSIVE PUNISH ON VULNERABLE (but stay safe) ===
+        # PRIORITY 4: AGGRESSIVE PUNISH ON VULNERABLE
         if self.is_vulnerable(opp_state) and distance < 3.5:
             # Only chase if we're in a safe position
             if not self.is_safe_position(pos):
@@ -300,7 +299,7 @@ class SubmittedAgent(Agent):
             
             return action
         
-        # === PRIORITY 5: POSITIONING & SPACING (edge-aware) ===
+        # PRIORITY 5: POSITIONING & SPACING
         # Weapon-based optimal distance
         if self.current_weapon == 'Hammer':
             optimal_distance = 2.5
@@ -342,7 +341,7 @@ class SubmittedAgent(Agent):
                     self.combo_count += 1
                     return action
         
-        # === PRIORITY 6: AERIAL ATTACKS (with direction) ===
+        # PRIORITY 6: AERIAL ATTACKS (with direction)
         if pos[1] < opp_pos[1] - 1.0 and distance < 2.5:
             attack_keys = self.get_weapon_attack(self.current_weapon, distance, opp_state)
             if attack_keys:
@@ -361,7 +360,7 @@ class SubmittedAgent(Agent):
             action = self.act_helper.press_keys(['g'], action)
             self.last_grab_attempt = self.time
         
-        # === FALLBACK: Use ML if no strategic action ===
+        # Use ML if no strategic action
         if sum(action) == 0:
             action = ml_action
         
